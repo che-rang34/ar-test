@@ -13,8 +13,10 @@ window.APP_CONFIG = {
   // iPhone용 Variant Launch 키. 가입 후 받은 key 값을 따옴표 안에 넣으세요. 비워 두면 iPhone은 꺼져 있어요.
   VARIANT_LAUNCH_KEY: 'JECTFgJxRuYBNSC5AuS9tGNTU1IlOurl',
 
-  // 캐릭터 파일. 내 모델로 바꿀 땐 'models/character.glb' 처럼 적으세요.
-  MODEL_URL: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
+  // 캐릭터 파일. GitHub에 models/character.glb 를 올리면 자동으로 그 캐릭터가 나와요.
+  MODEL_URL: 'models/character.glb',
+  // 위 파일이 아직 없으면 대신 보여줄 샘플 로봇
+  FALLBACK_MODEL_URL: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/RobotExpressive/RobotExpressive.glb',
 
   // AR에서 보일 캐릭터 키(미터). 0.3 = 30cm. null 로 두면 Blender에서 만든 크기 그대로예요.
   CHARACTER_HEIGHT: 0.3,
@@ -74,6 +76,14 @@ if (window.APP_CONFIG.VARIANT_LAUNCH_KEY) {
   #intro p { margin: 6px 0 0; font-size: 15px; color: #d8cfc0; }
   .lamp { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #5cff8a; box-shadow: 0 0 8px #5cff8a; margin-right: 6px; animation: blink 1.4s steps(2) infinite; vertical-align: 1px; }
   @keyframes blink { 50% { opacity: .25; } }
+
+  /* iPhone 안내 */
+  #iosNote { position: absolute; left: 20px; right: 20px; bottom: calc(98px + env(safe-area-inset-bottom)); display: none; text-align: center; font-size: 15px; line-height: 1.35; color: #fff; background: rgba(0,0,0,.6); border: 1px solid rgba(245,196,0,.6); border-radius: 12px; padding: 8px 10px; pointer-events: none; }
+  #iosNote b { color: var(--yellow); font-weight: 400; }
+  #iosNote span { font-size: 13px; color: #cfc6b8; }
+  body.ios-launch #iosNote { display: block; }
+  body.ios-launch #tapHint { bottom: calc(160px + env(safe-area-inset-bottom)); }
+  body.ar #iosNote, body.launching #iosNote { display: none !important; }
 
   /* 터치 안내 */
   #tapHint { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(104px + env(safe-area-inset-bottom)); background: rgba(0,0,0,.55); color: #fff; font-size: 16px; padding: 8px 16px; border-radius: 20px; white-space: nowrap; pointer-events: none; animation: bob 1.6s ease-in-out infinite; transition: opacity .4s; }
@@ -151,6 +161,7 @@ if (window.APP_CONFIG.VARIANT_LAUNCH_KEY) {
   <button id="placeBtn" class="off">⬇ 여기에 착륙</button>
   <button id="moveBtn">↺ 위치 옮기기</button>
   <div id="note"></div>
+  <div id="iosNote">📱 다음 화면에서 <b>'열기'</b>를 누르면 AR이 시작돼요<br><span>앱 설치가 아니에요 · 로그인도 필요 없어요</span></div>
   <div id="tapHint">👆 로봇을 터치해 봐요!</div>
   <button id="arBtn" disabled>시스템 점검 중…</button>
   <div id="steamFx"></div>
@@ -522,7 +533,21 @@ applyScale(CFG.CHARACTER_HEIGHT || 0.3);
 scene.background = new THREE.Color(BG);
 
 const draco = new DRACOLoader().setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-new GLTFLoader().setDRACOLoader(draco).load(CFG.MODEL_URL, (gltf) => {
+const loader = new GLTFLoader().setDRACOLoader(draco);
+function loadModel(url, isFallback) {
+  loader.load(url, onModelLoaded, undefined, (err) => {
+    if (!isFallback && CFG.FALLBACK_MODEL_URL) {
+      console.log(`'${url}' 이 없어서 샘플 로봇을 보여줘요.`);
+      loadModel(CFG.FALLBACK_MODEL_URL, true);
+      return;
+    }
+    console.error(err);
+    ui.loading.textContent = '부품(모델 파일)을 못 찾았어요. MODEL_URL 을 확인해 주세요.';
+  });
+}
+loadModel(CFG.MODEL_URL, false);
+
+function onModelLoaded(gltf) {
   const model = gltf.scene;
   model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
@@ -568,11 +593,9 @@ new GLTFLoader().setDRACOLoader(draco).load(CFG.MODEL_URL, (gltf) => {
   }
   mixer.addEventListener('finished', (e) => { if (e.action === current && idleAction) fadeTo(idleAction); });
 
+  buildActionButtons();
   ui.loading.remove();
-}, undefined, (err) => {
-  console.error(err);
-  ui.loading.textContent = '부품(모델 파일)을 못 찾았어요. MODEL_URL 을 확인해 주세요.';
-});
+}
 
 function fadeTo(next) {
   if (current && current !== next) current.fadeOut(0.25);
@@ -621,12 +644,16 @@ renderer.domElement.addEventListener('pointerup', (e) => {
 // ============================================================
 // AR 동작 버튼
 // ============================================================
-CFG.ACTIONS.forEach((cfg) => {
-  const b = document.createElement('button');
-  b.textContent = cfg.label;
-  b.addEventListener('click', () => playAction(cfg));
-  ui.actions.appendChild(b);
-});
+// 모델에 실제로 들어 있는 동작만 버튼으로 만들어요
+function buildActionButtons() {
+  ui.actions.innerHTML = '';
+  CFG.ACTIONS.filter((cfg) => clips[cfg.name]).forEach((cfg) => {
+    const b = document.createElement('button');
+    b.textContent = cfg.label;
+    b.addEventListener('click', () => playAction(cfg));
+    ui.actions.appendChild(b);
+  });
+}
 ui.overlay.addEventListener('beforexrselect', (e) => e.preventDefault());
 
 let hintTimer = null;
@@ -650,6 +677,7 @@ async function checkSupport() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   ui.arBtn.disabled = mode === 'none';
   ui.arBtn.textContent = mode === 'none' ? 'AR 사용 불가' : '⚙ 우리 집으로 출동!';
+  document.body.classList.toggle('ios-launch', mode === 'launch');
   ui.note.textContent = mode !== 'none' ? '' :
     isIOS ? (CFG.VARIANT_LAUNCH_KEY ? 'iPhone AR을 준비하고 있어요. 잠시 후 다시 시도해 주세요.' : 'iPhone AR은 아직 연결 전이에요 (Variant Launch 키 필요).')
           : '이 기기나 브라우저는 AR을 지원하지 않아요. Android 폰의 Chrome에서 열어 주세요.';
