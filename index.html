@@ -39,7 +39,13 @@ window.APP_CONFIG = {
     { name: 'Running',  label: '🏃 달리기',    loop: false },
     { name: 'Sitting',  label: '🪑 앉기',      loop: false },
     { name: 'Death',    label: '😵 쓰러지기',  loop: false },
+    // 증기 로봇(character.glb) 전용 동작
+    { name: 'Spin',      label: '🌀 빙글 돌기', loop: false },
+    { name: 'Shake',     label: '🫨 부르르',    loop: false },
+    { name: 'SteamPuff', label: '♨️ 증기 뿜기', loop: false },
   ],
+  // 키를 잴 때 빼는 부품 이름 (굴뚝 위 증기 구슬처럼 몸 바깥에 떠 있는 것)
+  IGNORE_FOR_SIZE: /^Steam_/,
 
   // 출동할 때(날아갈 때) 동작, AR에서 착륙한 직후 동작. 없으면 '' 로 두세요.
   LAUNCH_ACTION: 'Jump',
@@ -551,10 +557,16 @@ function onModelLoaded(gltf) {
   const model = gltf.scene;
   model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
-  let box = new THREE.Box3().setFromObject(model);
+  const measure = () => {
+    const b = new THREE.Box3();
+    model.updateMatrixWorld(true);
+    model.traverse((o) => { if (o.isMesh && !(CFG.IGNORE_FOR_SIZE && CFG.IGNORE_FOR_SIZE.test(o.name))) b.expandByObject(o); });
+    return b.isEmpty() ? new THREE.Box3().setFromObject(model) : b;
+  };
+  let box = measure();
   const size = box.getSize(new THREE.Vector3());
   if (CFG.CHARACTER_HEIGHT && size.y > 0) model.scale.multiplyScalar(CFG.CHARACTER_HEIGHT / size.y);
-  box = new THREE.Box3().setFromObject(model);
+  box = measure();
   const center = box.getCenter(new THREE.Vector3());
   model.position.x -= center.x;
   model.position.z -= center.z;
