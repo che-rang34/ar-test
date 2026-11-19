@@ -26,9 +26,17 @@ window.APP_CONFIG = {
   // name 은 Blender 동작 이름과 철자·대소문자까지 같아야 해요.
   // loop: false = 한 번 하고 대기로 돌아감 / true = 다른 동작이 나올 때까지 반복
   ACTIONS: [
-    { name: 'Wave', label: '👋 손 흔들기', loop: false },
-    { name: 'Jump', label: '⬆️ 점프', loop: false },
-    // { name: 'Dance', label: '💃 춤추기', loop: true },
+    { name: 'Wave',     label: '👋 손 흔들기', loop: false },
+    { name: 'Jump',     label: '⬆️ 점프',      loop: false },
+    { name: 'Dance',    label: '💃 춤추기',    loop: false },
+    { name: 'ThumbsUp', label: '👍 엄지척',    loop: false },
+    { name: 'Yes',      label: '🙆 끄덕끄덕',  loop: false },
+    { name: 'No',       label: '🙅 절레절레',  loop: false },
+    { name: 'Punch',    label: '👊 펀치',      loop: false },
+    { name: 'Walking',  label: '🚶 걷기',      loop: false },
+    { name: 'Running',  label: '🏃 달리기',    loop: false },
+    { name: 'Sitting',  label: '🪑 앉기',      loop: false },
+    { name: 'Death',    label: '😵 쓰러지기',  loop: false },
   ],
 
   // 출동할 때(날아갈 때) 동작, AR에서 착륙한 직후 동작. 없으면 '' 로 두세요.
@@ -81,9 +89,9 @@ if (window.APP_CONFIG.VARIANT_LAUNCH_KEY) {
   body.ar #intro, body.ar #arBtn, body.ar #note, body.ar #tapHint, body.launching #tapHint { display: none; }
 
   /* 동작 버튼 (AR 전용) */
-  #actions { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 0 16px; }
+  #actions { position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 0 16px; }
   body:not(.ar) #actions, body.ar:not(.placed) #actions { display: none; }
-  #actions button { font-family: inherit; border: 2px solid var(--yellow); background: rgba(30,27,24,.92); color: #fff; font-size: 17px; padding: 9px 16px; border-radius: 12px; box-shadow: 0 3px 0 #0e0c0a; }
+  #actions button { font-family: inherit; border: 2px solid var(--yellow); background: rgba(30,27,24,.92); color: #fff; font-size: 15px; padding: 7px 12px; border-radius: 12px; box-shadow: 0 3px 0 #0e0c0a; }
   #actions button:active { transform: translateY(2px); box-shadow: 0 1px 0 #0e0c0a; }
 
   /* AR 안내 + 버튼 */
